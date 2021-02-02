@@ -3,7 +3,28 @@ from io import BytesIO
 
 import requests
 from PIL import Image
-from spn_finder import get_spn
+from distance import lonlat_distance
+
+
+def get_organization(ll):
+    search_api_server = "https://search-maps.yandex.ru/v1/"
+    api_key = "d7e2a7d3-32d5-44db-ad56-43b741226da0"
+    ll = ','.join([str(ll[0]), str(ll[1])])
+    search_params = {
+        "apikey": api_key,
+        "text": "аптека",
+        "lang": "ru_RU",
+        "ll": ll,
+        "type": "biz"
+    }
+
+    response = requests.get(search_api_server, params=search_params)
+    if not response:
+        pass
+
+    json_response = response.json()
+    organization = json_response["features"][0]
+    return organization
 
 
 def geocode(address):
@@ -44,34 +65,43 @@ def get_points(address):
     return left_point, right_point
 
 
-def show_map(ll, spn, l='map', pt=None):
+def print_info_about_pharmacy(organization, point):
+    org_name = organization["properties"]["CompanyMetaData"]["name"]
+    org_address = organization["properties"]["CompanyMetaData"]["address"]
+    org_working_time = organization["properties"]["CompanyMetaData"]["Hours"]["text"]
+    point_org = organization["geometry"]["coordinates"]
+    ln = lonlat_distance(point_org, point)
+    print(org_name, org_address, org_working_time, str(ln) + ' м', sep='\n')
+
+
+def show_map(spn=None, ll=None, l='map', add_params=None):
     map_params = {
-        "ll": ll,
-        "spn": spn,
         "l": l
     }
-    if pt is not None:
-        map_params['pt'] = pt
+    if spn is not None:
+        map_params['spn'] = spn
+    if ll is not None:
+        map_params['ll'] = ll
+    if add_params is not None:
+        map_params['pt'] = '~'.join(add_params)
 
     map_api_server = "http://static-maps.yandex.ru/1.x/"
     response = requests.get(map_api_server, params=map_params)
-
+    print(response.url)
     Image.open(BytesIO(
         response.content)).show()
 
 
-toponym_to_find = " ".join(sys.argv[1:])
-toponym_longitude, toponym_lattitude = get_coordinates(toponym_to_find)
+if __name__ == '__main__':
+    address = ' '.join(sys.argv[1:])
+    address_ll = get_coordinates(address)
+    organization = get_organization(address_ll)
 
-delta = "0.005"
-spn = ",".join([delta, delta])
-ll = ",".join([str(toponym_longitude), str(toponym_lattitude)])
+    org_point = organization["geometry"]["coordinates"]
 
-show_map(ll, spn)
+    print_info_about_pharmacy(organization, address_ll)
 
-toponym_points = get_points(toponym_to_find)
-spn = get_spn(*toponym_points)
+    address_ll = ','.join([str(i) for i in address_ll])
+    org_point = ','.join([str(i) for i in org_point])
 
-show_map(ll, spn)
-
-show_map(ll, spn, pt=ll)
+    show_map(add_params=[address_ll, org_point])
