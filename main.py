@@ -6,13 +6,16 @@ from PIL import Image
 from spn_finder import get_spn
 
 
-def geocode(address):
+def geocode(address, kind=None):
     geocoder_api_server = "http://geocode-maps.yandex.ru/1.x/"
 
     geocoder_params = {
         "apikey": "40d1649f-0493-4b70-98ba-98533de7710b",
         "geocode": address,
         "format": "json"}
+
+    if kind is not None:
+        geocoder_params['kind'] = kind
 
     response = requests.get(geocoder_api_server, params=geocoder_params)
 
@@ -44,6 +47,13 @@ def get_points(address):
     return left_point, right_point
 
 
+def get_district_name(address):
+    response = geocode(address, kind='district')
+    dist = response["metaDataProperty"]["GeocoderMetaData"]["Address"]["district"]
+    print(dist)
+    return dist
+
+
 def show_map(ll, spn, l='map', pt=None):
     map_params = {
         "ll": ll,
@@ -61,17 +71,8 @@ def show_map(ll, spn, l='map', pt=None):
 
 
 toponym_to_find = " ".join(sys.argv[1:])
-toponym_longitude, toponym_lattitude = get_coordinates(toponym_to_find)
 
-delta = "0.005"
-spn = ",".join([delta, delta])
-ll = ",".join([str(toponym_longitude), str(toponym_lattitude)])
+district = get_district_name(toponym_to_find)
 
-show_map(ll, spn)
 
-toponym_points = get_points(toponym_to_find)
-spn = get_spn(*toponym_points)
 
-show_map(ll, spn)
-
-show_map(ll, spn, pt=ll)
