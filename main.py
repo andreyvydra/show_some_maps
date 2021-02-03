@@ -117,12 +117,12 @@ if __name__ == '__main__':
         org_point = item["geometry"]["coordinates"]
         org_point = ','.join([str(i) for i in org_point])
 
-        if 'круглосуточно' in get_hours_of_organization(item):
+        if get_hours_of_organization(item) is None:
+            org_point += ',pmgrm'
+        elif 'круглосуточно' in get_hours_of_organization(item):
             org_point += ',pmgnm'
         elif get_hours_of_organization(item) is not None:
             org_point += ',pmblm'
-        else:
-            org_point += ',pmgrm'
 
         points.append(org_point)
 
