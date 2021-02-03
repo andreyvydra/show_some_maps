@@ -6,7 +6,7 @@ from PIL import Image
 from distance import lonlat_distance
 
 
-def get_organization(ll):
+def get_organizations(ll, length=1):
     search_api_server = "https://search-maps.yandex.ru/v1/"
     api_key = "d7e2a7d3-32d5-44db-ad56-43b741226da0"
     ll = ','.join([str(ll[0]), str(ll[1])])
@@ -23,7 +23,14 @@ def get_organization(ll):
         pass
 
     json_response = response.json()
-    organization = json_response["features"][0]
+    organizations = json_response["features"]
+    if len(organizations) < length:
+        return organizations
+    return organizations[:length]
+
+
+def get_organization(ll):
+    organization = get_organizations(ll)[0]
     return organization
 
 
@@ -68,11 +75,17 @@ def get_points(address):
 def print_info_about_pharmacy(organization, point):
     org_name = organization["properties"]["CompanyMetaData"]["name"]
     org_address = organization["properties"]["CompanyMetaData"]["address"]
-    org_working_time = organization["properties"]["CompanyMetaData"]["Hours"]["text"]
+    org_working_time = get_hours_of_organization(organization)
     point_org = organization["geometry"]["coordinates"]
     ln = lonlat_distance(point_org, point)
     print(org_name, org_address, org_working_time, str(ln) + ' м', sep='\n')
 
+
+def get_hours_of_organization(organization):
+    try:
+        return organization["properties"]["CompanyMetaData"]["Hours"]["text"]
+    except KeyError:
+        return None
 
 def show_map(spn=None, ll=None, l='map', add_params=None):
     map_params = {
@@ -87,7 +100,7 @@ def show_map(spn=None, ll=None, l='map', add_params=None):
 
     map_api_server = "http://static-maps.yandex.ru/1.x/"
     response = requests.get(map_api_server, params=map_params)
-    print(response.url)
+
     Image.open(BytesIO(
         response.content)).show()
 
@@ -95,13 +108,22 @@ def show_map(spn=None, ll=None, l='map', add_params=None):
 if __name__ == '__main__':
     address = ' '.join(sys.argv[1:])
     address_ll = get_coordinates(address)
-    organization = get_organization(address_ll)
-
-    org_point = organization["geometry"]["coordinates"]
-
-    print_info_about_pharmacy(organization, address_ll)
+    organizations = get_organizations(address_ll, length=10)
 
     address_ll = ','.join([str(i) for i in address_ll])
-    org_point = ','.join([str(i) for i in org_point])
+    points = [address_ll]
 
-    show_map(add_params=[address_ll, org_point])
+    for item in organizations:
+        org_point = item["geometry"]["coordinates"]
+        org_point = ','.join([str(i) for i in org_point])
+
+        if 'круглосуточно' in get_hours_of_organization(item):
+            org_point += ',pmgnm'
+        elif get_hours_of_organization(item) is not None:
+            org_point += ',pmblm'
+        else:
+            org_point += ',pmgrm'
+
+        points.append(org_point)
+
+    show_map(add_params=points)
