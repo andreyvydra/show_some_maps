@@ -8,7 +8,6 @@ from spn_finder import get_spn
 
 def geocode(address, kind=None):
     geocoder_api_server = "http://geocode-maps.yandex.ru/1.x/"
-
     geocoder_params = {
         "apikey": "40d1649f-0493-4b70-98ba-98533de7710b",
         "geocode": address,
@@ -49,8 +48,7 @@ def get_points(address):
 
 def get_district_name(address):
     response = geocode(address, kind='district')
-    dist = response["metaDataProperty"]["GeocoderMetaData"]["Address"]["district"]
-    print(dist)
+    dist = response["metaDataProperty"]["GeocoderMetaData"]["Address"]["Components"][4]["name"]
     return dist
 
 
@@ -71,8 +69,6 @@ def show_map(ll, spn, l='map', pt=None):
 
 
 toponym_to_find = " ".join(sys.argv[1:])
-
-district = get_district_name(toponym_to_find)
-
-
-
+coords = get_coordinates(toponym_to_find)
+district = get_district_name(str(coords[0]) + ',' + str(coords[1]))
+print(district)
